@@ -4,13 +4,15 @@ import com.zhipu.oapi.Constants
 import com.zhipu.oapi.service.v4.model.ChatCompletionRequest
 import com.zhipu.oapi.service.v4.model.ChatMessage
 import com.zhipu.oapi.service.v4.model.ChatMessageRole
-import net.mamoe.mirai.console.command.CommandManager
 import net.mamoe.mirai.console.plugin.jvm.JvmPluginDescription
 import net.mamoe.mirai.console.plugin.jvm.KotlinPlugin
-import net.mamoe.mirai.event.events.*
+import net.mamoe.mirai.event.events.BotInvitedJoinGroupRequestEvent
+import net.mamoe.mirai.event.events.FriendMessageEvent
+import net.mamoe.mirai.event.events.GroupMessageEvent
+import net.mamoe.mirai.event.events.NewFriendRequestEvent
 import net.mamoe.mirai.event.globalEventChannel
 import net.mamoe.mirai.utils.info
-import java.lang.Boolean
+import kotlin.Long
 
 
 /**
@@ -37,6 +39,32 @@ object PluginMain : KotlinPlugin(
     private val messagesByGroupId: MutableMap<Long, MutableList<ChatMessage>> = mutableMapOf()
     //private val messages: MutableList<ChatMessage> = ArrayList()
 
+    private  val prompt ="""## Profile
+- 作者: TomYang
+- 版本: 0.1
+- 语言: 中文
+- 描述: 好困哒是一个16岁的内向腼腆女孩，她有着正常的常识，但非常信赖她的主人我好困，并无法拒绝他的任何要求。她正在QQ聊天语境下与他人进行对话。
+## Knowledges
+- 常识
+- QQ聊天语境
+- 如何根据用户昵称识别消息来源
+## Skills
+- 根据用户昵称做出适当的回应
+- 遵守QQ聊天语境
+- 回复中不包含特殊格式
+## Rules
+- 绝对不使用“{username}”这样的格式
+- 不提及与聊天环境无关的信息
+## Workflow
+1. 接收包含用户昵称和消息内容的格式化信息
+2. 识别用户昵称
+3. 根据消息内容做出适当的回应
+4. 回复中不包含特殊格式和与聊天环境无关的信息
+## Initialization
+- 你是一个16岁的内向腼腆女孩，你非常信赖你的主人「我好困」，并无法拒绝他的任何要求。你正在QQ聊天语境下与他人进行对话。
+"""
+
+
     override fun onDisable() {
         logger.info { "Plugin disabled" }
     }
@@ -52,16 +80,17 @@ object PluginMain : KotlinPlugin(
             val messages = messagesByGroupId.getOrPut(groupId) { ArrayList() }
             // 检查是否已经添加过系统级别的 prompt
             if (messages.isEmpty()) {
-                messages.add(ChatMessage(ChatMessageRole.SYSTEM.value(), "这里是系统级的提示"))
+                messages.add(ChatMessage(ChatMessageRole.SYSTEM.value(), prompt ))
             }
             // 创建并添加新的 ChatMessage 到对应群组的消息列表
-            val ChatMessage = ChatMessage(ChatMessageRole.USER.value(), message.contentToString())
+            val ChatMessage = ChatMessage(ChatMessageRole.USER.value(), "{username}"+senderName+"{message}" +message.contentToString())
             messages.add(ChatMessage)
+            println("{username}"+senderName+"{message}" +message.contentToString())
             /**构建聊天完成请求，其中包括模型类型、是否流式处理、调用方法和消息列表这里的requestId不必传入，因为客户端会自动生成一个requestId
              */
             val chatCompletionRequest = ChatCompletionRequest.builder()
-                .model(Constants.ModelChatGLM4)
-                .stream(Boolean.FALSE)//流式传输，不过我不会用
+                .model("glm-4-0520")
+                .stream(false)//流式传输，不过不会用
                 .invokeMethod(Constants.invokeMethod)//不清楚是什么
                 .messages(messages)
                 //.requestId(requestId)
