@@ -11,6 +11,10 @@ import net.mamoe.mirai.event.events.FriendMessageEvent
 import net.mamoe.mirai.event.events.GroupMessageEvent
 import net.mamoe.mirai.event.events.NewFriendRequestEvent
 import net.mamoe.mirai.event.globalEventChannel
+import net.mamoe.mirai.message.data.Image
+import net.mamoe.mirai.message.data.Image.Key.queryUrl
+import net.mamoe.mirai.message.data.MessageChain
+import net.mamoe.mirai.message.data.PlainText
 import net.mamoe.mirai.utils.info
 import kotlin.Long
 
@@ -65,6 +69,28 @@ object PluginMain : KotlinPlugin(
 """
 
 
+
+
+
+    private suspend fun messageBuild(message: MessageChain): String {
+        val messageBuilder = StringBuilder()
+        message.forEach { item ->
+            when (item) {
+                is Image -> {
+                    val url = item.queryUrl() // 注意这里使用的是 Image 的 url 属性
+                    messageBuilder.append("$url\n")
+                }
+                is PlainText -> {
+                    messageBuilder.append("${item.content}\n")
+                }
+               /* else -> {
+                    println("未处理的消息类型：${item::class.java}")
+                }*/
+            }
+        }
+        return messageBuilder.toString()
+    }
+
     override fun onDisable() {
         logger.info { "Plugin disabled" }
     }
@@ -83,16 +109,17 @@ object PluginMain : KotlinPlugin(
                 messages.add(ChatMessage(ChatMessageRole.SYSTEM.value(), prompt ))
             }
             // 创建并添加新的 ChatMessage 到对应群组的消息列表
-            val ChatMessage = ChatMessage(ChatMessageRole.USER.value(), "{username}"+senderName+"{message}" +message.contentToString())
+            val ChatMessage = ChatMessage(ChatMessageRole.USER.value(), /*"{username}"+senderName+"{message}" + */messageBuild(message))
             messages.add(ChatMessage)
-            println("{username}"+senderName+"{message}" +message.contentToString())
+            println("{username}"+senderName+"{message}" +messageBuild(message))
             /**构建聊天完成请求，其中包括模型类型、是否流式处理、调用方法和消息列表这里的requestId不必传入，因为客户端会自动生成一个requestId
              */
             val chatCompletionRequest = ChatCompletionRequest.builder()
-                .model("glm-4-0520")
+                .model("glm-4v")
                 .stream(false)//流式传输，不过不会用
                 .invokeMethod(Constants.invokeMethod)//不清楚是什么
                 .messages(messages)
+
                 //.requestId(requestId)
                 .build()
 
@@ -106,6 +133,11 @@ object PluginMain : KotlinPlugin(
             } catch (e: JsonProcessingException) {
                 e.printStackTrace()
             }
+
+
+
+
+
 
 
 
