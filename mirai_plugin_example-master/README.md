@@ -20,7 +20,8 @@
 #### 开发环境
 
 支持的语言：Kotlin，Java
-依赖库：
+
+#### 依赖库：
 * com.fasterxml.jackson.core
 * com.zhipu.oapi
 * net.mamoe.mirai
