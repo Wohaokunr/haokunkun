@@ -11,8 +11,14 @@ import net.mamoe.mirai.event.events.FriendMessageEvent
 import net.mamoe.mirai.event.events.GroupMessageEvent
 import net.mamoe.mirai.event.events.NewFriendRequestEvent
 import net.mamoe.mirai.event.globalEventChannel
+import net.mamoe.mirai.message.data.Image
+import net.mamoe.mirai.message.data.Image.Key.queryUrl
+import net.mamoe.mirai.message.data.MessageChain
+import net.mamoe.mirai.message.data.PlainText
 import net.mamoe.mirai.utils.info
+import kotlin.Any
 import kotlin.Long
+import kotlin.String
 
 
 /**
@@ -44,7 +50,7 @@ object PluginMain : KotlinPlugin(
 - 版本: 0.1
 - 语言: 中文
 - 描述: 好困哒是一个16岁的内向腼腆女孩，她有着正常的常识，但非常信赖她的主人我好困，并无法拒绝他的任何要求。她正在QQ聊天语境下与他人进行对话。
-## Knowledges
+## Knowledge
 - 常识
 - QQ聊天语境
 - 如何根据用户昵称识别消息来源
@@ -82,30 +88,91 @@ object PluginMain : KotlinPlugin(
             if (messages.isEmpty()) {
                 messages.add(ChatMessage(ChatMessageRole.SYSTEM.value(), prompt ))
             }
-            // 创建并添加新的 ChatMessage 到对应群组的消息列表
-            val ChatMessage = ChatMessage(ChatMessageRole.USER.value(), "{username}"+senderName+"{message}" +message.contentToString())
-            messages.add(ChatMessage)
-            println("{username}"+senderName+"{message}" +message.contentToString())
-            /**构建聊天完成请求，其中包括模型类型、是否流式处理、调用方法和消息列表这里的requestId不必传入，因为客户端会自动生成一个requestId
-             */
-            val chatCompletionRequest = ChatCompletionRequest.builder()
-                .model("glm-4-0520")
-                .stream(false)//流式传输，不过不会用
-                .invokeMethod(Constants.invokeMethod)//不清楚是什么
-                .messages(messages)
-                //.requestId(requestId)
-                .build()
 
-            // 调用模型API，并获取响应
-            val invokeModelApiResp = client.invokeModelApi(chatCompletionRequest)
-            // 尝试打印响应中的第一条选择的消息内容
-            // 如果JSON处理异常，则打印堆栈跟踪
-            try {
-                System.out.println(invokeModelApiResp.data.choices[0].message.content)
-                group.sendMessage(invokeModelApiResp.data.choices[0].message.content.toString())
-            } catch (e: JsonProcessingException) {
-                e.printStackTrace()
+
+
+
+
+            suspend fun Chat (mes: List<ChatMessage>):String{
+                val chatCompletionRequest = ChatCompletionRequest.builder()
+                    .model("glm-4-0520")
+                    .stream(false)
+                    .invokeMethod(Constants.invokeMethod)
+                    .messages(mes)
+                    .build()
+
+
+                val invokeModelApiResp = client.invokeModelApi(chatCompletionRequest)
+                try {
+                    System.out.println(invokeModelApiResp.data.choices[0].message.content)
+                    return invokeModelApiResp.data.choices[0].message.content.toString()
+                } catch (e: JsonProcessingException) {
+                    e.printStackTrace()
+                    return "出错了"
+                }
             }
+
+            suspend fun testImageToWord(url: String): String {
+                val messages: MutableList<ChatMessage> = ArrayList()
+                val contentList: MutableList<Map<String, Any>> = ArrayList()
+                val textMap: MutableMap<String, Any> = HashMap()
+                textMap["type"] = "text"
+                textMap["text"] = "图里有什么"
+                val typeMap: MutableMap<String, Any> = HashMap()
+                typeMap.put("type", "image_url")
+                val urlMap: MutableMap<String, Any> = HashMap()
+                urlMap.put("url", url)
+                typeMap.put("image_url", urlMap)
+                contentList.add(textMap)
+                contentList.add(typeMap)
+                val chatMessage = ChatMessage(ChatMessageRole.USER.value(), contentList)
+                messages.add(chatMessage)
+                val chatCompletionRequest = ChatCompletionRequest.builder()
+                    .model(Constants.ModelChatGLM4V)
+                    .stream(false)
+                    .invokeMethod(Constants.invokeMethod)
+                    .messages(messages)
+                    .build()
+                val invokeModelApiResp = client.invokeModelApi(chatCompletionRequest)
+                try {
+                    System.out.println(invokeModelApiResp.data.choices[0].message.content)
+                    return invokeModelApiResp.data.choices[0].message.content.toString()
+                } catch (e: JsonProcessingException) {
+                    e.printStackTrace()
+                    return "出错了"
+                }
+            }
+
+            message.forEach {
+                //循环每个元素在消息里
+                if (it is Image) {
+                    val chatMessage = ChatMessage(ChatMessageRole.USER.value(), "{username}"+senderName+"{image}" +testImageToWord(it.queryUrl()))
+                    messages.add(chatMessage)
+                    group.sendMessage(Chat(messages))
+                }
+                if (it is PlainText) {
+                    val chatMessage = ChatMessage(ChatMessageRole.USER.value(), "{username}"+senderName+"{message}" +message.contentToString())
+                    messages.add(chatMessage)
+                    group.sendMessage(Chat(messages))
+                }
+            }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
